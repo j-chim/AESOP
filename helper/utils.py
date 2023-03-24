@@ -1,11 +1,7 @@
-import pandas as pd
 from nltk.tree import Tree
 import os
 import re
 import subprocess
-import threading
-import tempfile
-import codecs
 import ast
 from numpy.random import choice
 from rouge_score import rouge_scorer
@@ -56,12 +52,14 @@ def trim_tree_nltk(root, height):
 
 # extract parses from corenlp output
 def extract_parses(fname):
-    f = codecs.getreader('utf-8')(open(fname, 'rb'))
+    
+    with open(fname, "r") as f:
+        lines = f.readlines() 
 
     count = 0
     sentences = []
     data = {'tokens':[], 'pos':[], 'parse':'', 'deps':[]}
-    for idx, line in enumerate(f):
+    for idx, line in enumerate(lines):
         if line.startswith('Sentence #'):
             new_sent = True
             new_pos = False
@@ -70,9 +68,6 @@ def extract_parses(fname):
             if idx == 0:
                 continue
 
-            # label_sentence(data)
-            # print ' '.join(data['tokens'])
-            # data['label'] = dataset[count]['label']
             sentences.append(data)
             count += 1
 
@@ -80,7 +75,6 @@ def extract_parses(fname):
 
         # read original sentence
         elif new_sent:
-            # data['sent'] = line.strip()
             new_sent = False
             new_pos = True
 
@@ -118,26 +112,32 @@ def extract_parses(fname):
             new_deps = False
 
     # add last sentence
-    # label_sentence(data)
-    # data['label'] = dataset[count]['label']
     sentences.append(data)
 
     f.close()
 
     return sentences
 
-STANFORD_CORENLP = '../evaluation/apps/stanford-corenlp-full-2018-10-05'
+#STANFORD_CORENLP = 'evaluation/apps/stanford-corenlp-full-2018-10-05'
+STANFORD_CORENLP = './evaluation/apps/stanford-corenlp-full-2016-10-31/'
+# see: https://github.com/PlusLabNLP/AESOP/issues/8
+# in project root directory:
+# wget http://nlp.stanford.edu/software/stanford-corenlp-full-2016-10-31.zip
+# unzip stanford-corenlp-full-2016-10-31.zip -d ./evaluation/apps/
+# cd ./evaluation/apps/stanford-corenlp-full-2016-10-31/
+# wget http://nlp.stanford.edu/software/stanford-english-kbp-corenlp-2016-10-31-models.jar
+# wget http://nlp.stanford.edu/software/stanford-english-corenlp-2016-10-31-models.jar
+
 class stanford_parsetree_extractor:
-    def __init__(self):
+    def __init__(self, output_dir):
         self.stanford_corenlp_path = os.path.join(STANFORD_CORENLP, "*")
-        print("standford corenlp path:", self.stanford_corenlp_path)
-        self.output_dir = tempfile.TemporaryDirectory()
+        self.output_dir = output_dir
         self.cmd = ['java', '-cp', self.stanford_corenlp_path,
                     '-Xmx40g', 'edu.stanford.nlp.pipeline.StanfordCoreNLP',
                     '-parse.model', 'edu/stanford/nlp/models/srparser/englishSR.ser.gz',
                     '-annotators', 'tokenize,ssplit,pos,parse',
                     '-ssplit.eolonly', '-outputFormat', 'text',
-                    '-outputDirectory', self.output_dir.name,
+                    '-outputDirectory', self.output_dir,
                     '-file', None]
 
     def run(self, file):
@@ -151,7 +151,7 @@ class stanford_parsetree_extractor:
         print(out)
         parsed_file = \
             os.path.join(
-                self.output_dir.name,
+                self.output_dir,
                 os.path.split(file)[1] + ".out")
         return [e['pure_parse'] for e in
                 extract_parses(parsed_file)], [e['parse'] for e in extract_parses(parsed_file)]
