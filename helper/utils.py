@@ -134,6 +134,7 @@ class stanford_parsetree_extractor:
         self.output_dir = output_dir
         self.cmd = ['java', '-cp', self.stanford_corenlp_path,
                     '-Xmx40g', 'edu.stanford.nlp.pipeline.StanfordCoreNLP',
+                    '-tokenize.options', 'untokenizable=noneKeep',
                     '-parse.model', 'edu/stanford/nlp/models/srparser/englishSR.ser.gz',
                     '-annotators', 'tokenize,ssplit,pos,parse',
                     '-ssplit.eolonly', '-outputFormat', 'text',
